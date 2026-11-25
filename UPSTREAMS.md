@@ -1,6 +1,6 @@
 # 原译的上游来源
 
-原译从[本译的论文翻译流程](https://github.com/irave7/LocalLLMTranslate)提取了无界面的文档处理部分，新增独立 Agent 工作包、可恢复 API 请求、输出偏好和跨平台技能安装。主要许可证为 AGPL-3.0。技能包内含对应引擎代码及第三方声明。[LICENSE](LICENSE) · [第三方声明](packaging/RTranslate-NOTICES.md)
+原译从irave7 开发的本译（LocalLLMTranslate）论文翻译流程中提取了无界面的文档处理部分，新增独立 Agent 工作包、可恢复 API 请求、输出偏好和跨平台技能安装。主要许可证为 AGPL-3.0。技能包内含对应引擎代码及第三方声明。[LICENSE](LICENSE) · [第三方声明](packaging/RTranslate-NOTICES.md)
 
 | 项目 | 版本、用途与出处 |
 | --- | --- |
