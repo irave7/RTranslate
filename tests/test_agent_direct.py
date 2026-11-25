@@ -156,7 +156,7 @@ class DirectTests(unittest.TestCase):
 
     def test_child_uses_utf8_for_real_unicode_job_paths_despite_non_utf8_stdio(self):
         child_env = {**os.environ, "PYTHONIOENCODING":"cp1252", "PYTHONUTF8":"0"}
-        nested = self.root/"科研文献 — 随机试验"
+        nested = self.root.resolve()/"科研文献 — 随机试验"
         nested.mkdir()
         jobs.write(nested/"job.json", {"format":"pdf","glossary":"","output":"both"})
         (nested/"result").mkdir()

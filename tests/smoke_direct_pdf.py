@@ -13,12 +13,14 @@ def verify_direct(launcher, env, project, source):
     credential = "rtranslate-fixture-only-9bfdb0"
     received = []
     failures = []
+    requests = []
     class Provider(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
 
         def do_POST(self):
             try:
+                requests.append(self.path)
                 assert self.path == "/v1/chat/completions"
                 assert self.headers["Authorization"] == "Bearer "+credential
                 request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
@@ -66,9 +68,9 @@ def verify_direct(launcher, env, project, source):
             result = invoke([str(source),"--output","both","--no-figures"])
             assert result["state"] == "done" and result["pages"] == 1
             assert set(received) == set(translations) and not failures
-            before = len(received)
+            before = len(requests)
             resumed = invoke(["--resume"])
-            assert len(received) == before and resumed == result
+            assert len(requests) == before and resumed == result
         finally:
             server.shutdown()
             thread.join()
