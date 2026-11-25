@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "rtranslate",
+  "version": "1.0.0",
+  "description": "在宿主对话或用户配置的 API 中翻译科研论文，生成保留版式的中文或双语 PDF。",
+  "author": {
+    "name": "RTranslate contributors"
+  },
+  "repository": "https://github.com/irave7/RTranslate",
+  "license": "AGPL-3.0-only",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "原译 · RTranslate",
+        "shortDescription": "翻译科研论文，保留原版式并导出中文或双语 PDF",
+        "category": "Productivity"
+      }
+    }
+  }
+}

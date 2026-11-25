@@ -1,0 +1,4 @@
+interface:
+  display_name: "原译 · RTranslate"
+  short_description: "用桌面 Agent 或兼容 API 翻译科研论文，保留排版，记住译本偏好"
+  default_prompt: "用 $rtranslate 把这篇英文论文译成学术中文，保留原版面和图表。"

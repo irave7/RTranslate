@@ -1,0 +1,20 @@
+{
+  "name": "rtranslate-local",
+  "interface": {
+    "displayName": "原译 · RTranslate"
+  },
+  "plugins": [
+    {
+      "name": "rtranslate",
+      "source": {
+        "source": "local",
+        "path": "./plugins/rtranslate"
+      },
+      "category": "Productivity",
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      }
+    }
+  ]
+}

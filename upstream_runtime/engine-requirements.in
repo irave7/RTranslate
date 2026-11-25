@@ -1,0 +1,5 @@
+# Headless PDFMathTranslate-next / BabelDOC worker. The host and API bridge use the standard library.
+babeldoc==0.7.1
+tomlkit==0.13.3
+pydantic-settings==2.16.3
+bitstring>=4.3,<5

@@ -1,0 +1,30 @@
+name: RTranslate installation and PDF translation
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel, windows-2022]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build both installable packages
+        run: python3 packaging/build_agent_skill.py --output dist
+        if: runner.os == 'macOS'
+      - name: Build both installable packages on Windows
+        run: python packaging/build_agent_skill.py --output dist
+        if: runner.os == 'Windows'
+      - name: Install on macOS and translate a PDF
+        if: runner.os == 'macOS'
+        run: python3 tests/smoke_skill_install.py dist/rtranslate.zip
+      - name: Install on Windows and translate a PDF
+        if: runner.os == 'Windows'
+        run: python tests/smoke_skill_install.py dist/rtranslate.zip
