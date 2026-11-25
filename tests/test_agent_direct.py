@@ -125,3 +125,31 @@ class DirectTests(unittest.TestCase):
         self.assertEqual(len(self.server.calls),2)
         for item in ("http://example.org","https://key@host.test","https://host.test?key=x"):
             with self.assertRaises(ValueError):api.endpoint(item)
+
+    def test_certificate_failure_is_retryable_without_billing_consent(self):
+        import ssl, urllib.error
+        ident, batch = self.next("New request 12%")
+        failure = urllib.error.URLError(ssl.SSLCertVerificationError(1,"certificate verify failed"))
+        self.url = "https://provider.example/v1/chat/completions"
+        with patch("agent_bridge.api_transport._opener") as opener:
+            opener.return_value.open.side_effect = failure
+            with self.assertRaisesRegex(api.Rejected,"请求尚未发送"):
+                self.handle(batch)
+        self.assertEqual(jobs.read(self.ledger/(ident+".json"))["state"], "rejected")
+        self.url = api.endpoint(f"http://127.0.0.1:{self.server.server_port}/v1")
+        self.handle(batch)
+        self.assertIn("12%", self.queue.answer(ident))
+
+    def test_custom_ca_is_not_augmented_and_missing_file_fails_before_http(self):
+        import ssl
+        from upstream_runtime.bootstrap import verified_tls_context
+        missing = str(self.root/"no-such-certificate.pem")
+        with patch.dict(os.environ, {"SSL_CERT_FILE":missing}):
+            with self.assertRaises(OSError):
+                verified_tls_context()
+            with self.assertRaisesRegex(api.Rejected,"请求尚未发送"), patch("urllib.request.build_opener",side_effect=AssertionError):
+                api.send("https://provider.example/v1/chat/completions","model","test",[],1,False)
+        with patch.dict(os.environ, {"SSL_CERT_FILE":"","SSL_CERT_DIR":""}):
+            context = verified_tls_context()
+        self.assertEqual(context.verify_mode,ssl.CERT_REQUIRED)
+        self.assertTrue(context.check_hostname)

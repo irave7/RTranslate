@@ -2,9 +2,12 @@
 import http.client
 import ipaddress
 import json
+import ssl
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit, urlunsplit
+
+from upstream_runtime.bootstrap import verified_tls_context
 
 
 class Rejected(RuntimeError):
@@ -73,13 +76,35 @@ def _stream(response):
     return "".join(chunks)
 
 
+def _opener(url):
+    handlers = [_NoRedirect()]
+    if urlsplit(url).scheme == "https":
+        try:
+            handlers.append(urllib.request.HTTPSHandler(context=verified_tls_context()))
+        except (OSError, ValueError):
+            raise Rejected("无法读取本机 TLS 信任证书，翻译请求尚未发送。请核对系统证书或 SSL_CERT_FILE。") from None
+    return urllib.request.build_opener(*handlers)
+
+
+def _open(req, timeout):
+    try:
+        return _opener(req.full_url).open(req, timeout=timeout)
+    except urllib.error.URLError as error:
+        if not isinstance(error.reason, ssl.SSLCertVerificationError):
+            raise
+    except ssl.SSLCertVerificationError:
+        pass
+    # Certificate verification occurs during the initial TLS handshake,
+    # before the HTTP client writes the authorization header or POST body.
+    raise Rejected("TLS 证书校验失败，翻译请求尚未发送。请核对系统时间、证书及连接地址。") from None
+
+
 def send(url, model, key, messages, timeout, stream):
     body = json.dumps({"model":model, "messages":messages, "stream":stream}, ensure_ascii=False, separators=(",", ":")).encode()
     req = urllib.request.Request(url, data=body, headers={"Authorization":"Bearer "+key, "Content-Type":"application/json",
                                  "Accept":"text/event-stream" if stream else "application/json"}, method="POST")
-    opener = urllib.request.build_opener(_NoRedirect())
     try:
-        with opener.open(req, timeout=timeout) as response:
+        with _open(req, timeout) as response:
             if response.headers.get_content_type() == "text/event-stream":
                 return _stream(response)
             data = response.read(_LIMIT+1)

@@ -106,9 +106,15 @@ class _HTTPSRedirect(HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def _downloader():
+def verified_tls_context():
+    """Use the caller's explicit CAs or the OS trust bundle with hostname verification."""
+    cafile, capath = os.environ.get("SSL_CERT_FILE"), os.environ.get("SSL_CERT_DIR")
+    if cafile or capath:
+        # Load explicitly so a broken custom CA path cannot quietly select
+        # some other trust store. Do not broaden an operator's trust override.
+        return ssl.create_default_context(cafile=cafile, capath=capath)
     tls = ssl.create_default_context()
-    if sys.platform == "darwin" and not os.environ.get("SSL_CERT_FILE") and Path("/etc/ssl/cert.pem").is_file():
+    if sys.platform == "darwin" and Path("/etc/ssl/cert.pem").is_file():
         tls.load_verify_locations(cafile="/etc/ssl/cert.pem")
     try:
         import certifi
@@ -116,7 +122,11 @@ def _downloader():
         pass
     else:
         tls.load_verify_locations(cafile=certifi.where())
-    return build_opener(HTTPSHandler(context=tls), _HTTPSRedirect())
+    return tls
+
+
+def _downloader():
+    return build_opener(HTTPSHandler(context=verified_tls_context()), _HTTPSRedirect())
 
 
 def _download(spec, partial, opener, check, status):
