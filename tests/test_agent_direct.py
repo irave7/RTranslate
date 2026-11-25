@@ -153,3 +153,22 @@ class DirectTests(unittest.TestCase):
             context = verified_tls_context()
         self.assertEqual(context.verify_mode,ssl.CERT_REQUIRED)
         self.assertTrue(context.check_hostname)
+
+    def test_child_uses_utf8_for_real_unicode_job_paths_despite_non_utf8_stdio(self):
+        child_env = {**os.environ, "PYTHONIOENCODING":"cp1252", "PYTHONUTF8":"0"}
+        nested = self.root/"科研文献 — 随机试验"
+        nested.mkdir()
+        jobs.write(nested/"job.json", {"format":"pdf","glossary":"","output":"both"})
+        (nested/"result").mkdir()
+        jobs.write(nested/"result"/"receipt.json", {"pages":1,"output":"both"})
+        result = direct._worker_cli(["status","--job",str(nested)],child_env)
+        self.assertEqual(Path(result["mono"]),nested/"result"/"translated.pdf")
+        self.assertEqual(Path(result["dual"]),nested/"result"/"bilingual.pdf")
+        with self.assertRaisesRegex(RuntimeError, "指定目录不是"):
+            direct._worker_cli(["status","--job",str(nested/"没有任务")],child_env)
+        # Exercise startup itself before cli.main can reconfigure sys.stdout.
+        entry = self.root/"中文启动器.py"
+        entry.write_text("import sys,json;print(json.dumps(dict(文字='中文',utf8=sys.flags.utf8_mode),ensure_ascii=False))",
+                         encoding="utf-8")
+        with patch.object(jobs,"ENTRY",entry):
+            self.assertEqual(direct._worker_cli([],child_env), {"文字":"中文","utf8":1})

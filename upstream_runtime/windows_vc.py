@@ -46,6 +46,6 @@ def prepare_system_crt(root, check, status):
         _run([powershell, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
              {**os.environ, "LLT_VC_SETUP": str(installer.resolve())}, check, "安装运行库")
     except RuntimeError as exc:
-        raise RuntimeError("Microsoft Visual C++ x64 运行库未安装。请重新启动本译并允许 Windows 的管理员授权提示。") from exc
+        raise RuntimeError("Microsoft Visual C++ x64 运行库未安装。请重试原译任务，并在 Windows 提示时授权安装。") from exc
     if not system_crt_ready():
-        raise RuntimeError("请重新启动 Windows 以完成 Microsoft Visual C++ x64 运行库安装，然后再打开本译。")
+        raise RuntimeError("请重新启动 Windows 以完成 Microsoft Visual C++ x64 运行库安装，然后继续原译任务。")

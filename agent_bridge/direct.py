@@ -59,7 +59,10 @@ def _safe_env(key_name, key):
 
 
 def _worker_cli(arguments, env):
-    proc = subprocess.run([sys.executable, str(jobs.ENTRY), *arguments], env=env, capture_output=True, stdin=subprocess.DEVNULL)
+    # entry.py sets up its own import path. Pin UTF-8 before startup so
+    # redirected Windows output and non-ASCII job paths share one encoding.
+    command = [sys.executable, "-I", "-B", "-X", "utf8", str(jobs.ENTRY), *arguments]
+    proc = subprocess.run(command, env=env, capture_output=True, stdin=subprocess.DEVNULL)
     try:
         result = json.loads(proc.stdout.decode("utf-8"))
     except (ValueError, UnicodeError):

@@ -89,6 +89,8 @@ def main():
                  'assert len(d)==1 and "住院时间中位数为7天" in s and ("Surgicaloutcomes" in s)==(sys.argv[2]=="dual"),s')
         for kind in ('mono','dual'):
             subprocess.run([str(workers[0]),'-I','-B','-X','utf8','-c',check,row[kind],kind],check=True)
+        from smoke_direct_pdf import verify_direct
+        verify_direct(launcher, env, project, source)
         print('Verified fresh installation, repeat installation, WorkBuddy profile, PDF/OCR bootstrap and both translated PDFs.')
 
 
