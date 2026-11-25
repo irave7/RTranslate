@@ -26,9 +26,9 @@ set "RT_PY_URL=https://www.python.org/ftp/python/3.13.16/python-3.13.16-embed-am
 set "RT_PY_SHA=97dae5274cc54867065e8d5a3226e48c35017ed332a0fdb0e27d5b5821961297"
 set "ps=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 echo Preparing the private Windows x64 runtime from python.org... 1>&2
-"%ps%" -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile($env:RT_PY_URL,$env:RT_PY_ZIP)" || goto failed
-"%ps%" -NoProfile -NonInteractive -Command "if ((Get-FileHash -Algorithm SHA256 -LiteralPath $env:RT_PY_ZIP).Hash -ne $env:RT_PY_SHA) {exit 1}" || goto failed
-"%ps%" -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $env:RT_PY_ZIP -DestinationPath $env:RT_PY_EXTRACT; try {[IO.Directory]::Move($env:RT_PY_EXTRACT,$env:RT_PY_HOME)} catch [IO.IOException] {if (!(Test-Path -LiteralPath (Join-Path $env:RT_PY_HOME 'python.exe'))) {throw}}" || goto failed
+"%ps%" -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $c=[Net.WebClient]::new(); try {$c.DownloadFile($env:RT_PY_URL,$env:RT_PY_ZIP)} finally {$c.Dispose()}" || goto failed
+"%ps%" -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $s=[IO.File]::OpenRead($env:RT_PY_ZIP); $h=[Security.Cryptography.SHA256]::Create(); try {$hex=[BitConverter]::ToString($h.ComputeHash($s)).Replace('-','')} finally {$s.Dispose();$h.Dispose()}; if ($hex -ne $env:RT_PY_SHA) {exit 1}" || goto failed
+"%ps%" -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; [void][Reflection.Assembly]::LoadWithPartialName('System.IO.Compression.FileSystem'); [IO.Compression.ZipFile]::ExtractToDirectory($env:RT_PY_ZIP,$env:RT_PY_EXTRACT); try {[IO.Directory]::Move($env:RT_PY_EXTRACT,$env:RT_PY_HOME)} catch [IO.IOException] {if (![IO.File]::Exists([IO.Path]::Combine($env:RT_PY_HOME,'python.exe'))) {throw}}" || goto failed
 rmdir /s /q "%RT_PY_WORK%"
 goto bundled
 :failed

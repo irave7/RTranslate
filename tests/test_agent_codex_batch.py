@@ -41,6 +41,7 @@ class FreshSessionTests(unittest.TestCase):
             return CompletedProcess(command,0,stdout=b"Logged in using ChatGPT",stderr=b"")
         self.assertEqual(command[1],"exec")
         self.assertIn("--ephemeral",command)
+        self.assertEqual(command[command.index("--model")+1],"explicit-model")
         self.assertNotIn("fork",command)
         self.assertNotIn("resume",command)
         self.assertNotIn("CODEX_THREAD_ID",options["env"])
@@ -60,7 +61,7 @@ class FreshSessionTests(unittest.TestCase):
                 path = self.job/f"packet{n}.json"
                 ident = self.packet(text,path)
                 for _ in range(2):
-                    result = self.run_cli("codex-batch","--packet-file",str(path))
+                    result = self.run_cli("codex-batch","--packet-file",str(path),"--model","explicit-model")
                     self.assertEqual(set(result),{"state","batch","accepted"})
                     self.assertEqual(result["accepted"],1)
                 self.assertEqual(self.queue.answer(ident),"独立译文")

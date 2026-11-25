@@ -14,7 +14,7 @@ try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $url = "https://github.com/irave7/RTranslate/releases/download/$version"
         $Archive = Join-Path $scratch 'rtranslate.zip'
-        $client = New-Object Net.WebClient
+        $client = [Net.WebClient]::new()
         try {
             $client.DownloadFile("$url/rtranslate.zip", $Archive)
             $checks = $client.DownloadString("$url/SHA256SUMS.txt")
@@ -24,11 +24,16 @@ try {
         }
         $Sha256 = $Matches[1]
     }
-    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $Archive).Hash -ne $Sha256) {
+    $stream = [IO.File]::OpenRead([IO.Path]::GetFullPath($Archive))
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $actual = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') }
+    finally { $stream.Dispose(); $sha.Dispose() }
+    if ($actual -ne $Sha256) {
         throw 'RTranslate ZIP checksum mismatch.'
     }
     $skill = Join-Path $scratch 'skill'
-    Expand-Archive -LiteralPath $Archive -DestinationPath $skill
+    [void][Reflection.Assembly]::LoadWithPartialName('System.IO.Compression.FileSystem')
+    [IO.Compression.ZipFile]::ExtractToDirectory([IO.Path]::GetFullPath($Archive), $skill)
     $installArgs = @('--install-skill', '--host', $TargetHost)
     if ($Project) { $installArgs += @('--project', $Project) }
     & (Join-Path $skill 'scripts/rtranslate.cmd') @installArgs

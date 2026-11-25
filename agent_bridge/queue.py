@@ -85,7 +85,7 @@ class TaskQueue:
                 raise KeyError(ident)
             return found[0]
 
-    def claim(self, limit=8, lease_seconds=300, compact_budget=None):
+    def claim(self, limit=8, lease_seconds=300, compact_budget=None, *, allow_first_oversize=True):
         """Claim at most limit prompts. A crashed host's leases expire automatically."""
         if type(limit) is not int or not 1 <= limit <= 128:
             raise ValueError("每次可领取 1–128 个请求。")
@@ -104,19 +104,56 @@ class TaskQueue:
             for ident, payload in rows:
                 request = json.loads(payload)
                 if compact_budget is not None:
-                    from .codec import pack
-                    from .compact import omit_literals
-                    item = pack({**request, "id":"", "lease":""})
-                    omit_literals(item)
-                    size += len(json.dumps(item, ensure_ascii=False, separators=(",", ":")))
+                    size += self._compact_cost(request)
                     # Never split an original native paragraph or starve a long task.
-                    if results and size > compact_budget:
+                    if size > compact_budget and (results or not allow_first_oversize):
                         break
                 lease = secrets.token_urlsafe(18)
                 expires = now + lease_seconds
                 db.execute("UPDATE requests SET lease=?, expires=? WHERE id=?", (lease, expires, ident))
                 results.append(dict(id=ident, lease=lease, expires=expires, **request))
             return results
+
+    @staticmethod
+    def _compact_cost(request):
+        from .codec import pack
+        from .compact import omit_literals
+        item = pack({**request, "id":"", "lease":""})
+        omit_literals(item)
+        return len(json.dumps(item, ensure_ascii=False, separators=(",", ":")))
+
+    def collect(self, limit, lease_seconds=900, compact_budget=6000):
+        """Coalesce closely spaced native requests, without holding a DB lock while waiting."""
+        rows = self.claim(limit, lease_seconds, compact_budget)
+        if not rows or len(rows) >= limit:
+            return rows
+        first = rows[0]["messages"]
+        if len(first) == 1 and first[0]["content"].rstrip().endswith("Input:\n\nHello"):
+            # The native engine cannot produce its first document task until
+            # its transport probe completes; waiting here would only add latency.
+            return rows
+        remaining = compact_budget - sum(self._compact_cost(row) for row in rows)
+        start = time.monotonic()
+        until = start + .70
+        try:
+            while remaining > 0 and len(rows) < limit:
+                delay = until - time.monotonic()
+                if delay <= 0:
+                    break
+                time.sleep(min(delay, .08))
+                extra = self.claim(limit-len(rows), lease_seconds, remaining, allow_first_oversize=False)
+                if extra:
+                    rows.extend(extra)
+                    remaining -= sum(self._compact_cost(row) for row in extra)
+                    until = min(start + 1.8, time.monotonic() + .70)
+        except BaseException:
+            for row in rows:
+                try:
+                    self.release(row["id"], row["lease"])
+                except (InvalidLease, QueueCancelled):
+                    pass
+            raise
+        return rows
 
     def reply(self, ident, lease, content):
         """Commit a claimed reply exactly once, including safe retries after a lost response."""

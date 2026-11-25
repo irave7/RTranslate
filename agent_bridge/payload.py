@@ -109,6 +109,19 @@ def streamline(batch):
     return batch
 
 
+def bounded_batch(tasks, code, select_terms, budget):
+    """Include physical table hints and matching user terms in the final character budget."""
+    from copy import deepcopy
+    for count in range(len(tasks), 0, -1):
+        batch = {"state":"working", "tasks":deepcopy(tasks[:count]), "batch":code}
+        terms = select_terms(batch["tasks"])
+        if terms:
+            batch["glossary"] = terms
+        streamline(batch)
+        if count == 1 or len(json.dumps(batch, ensure_ascii=False, separators=(",", ":"))) <= budget:
+            return batch
+
+
 def packet(directory, destination, limit, wait):
     """Give the coordinator only a private filename and status; never echo paper content."""
     import os

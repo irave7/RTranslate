@@ -74,8 +74,10 @@ def build_zip(target, members):
                 info.create_system = 3
                 info.external_attr = (0o100755 if name.endswith(".sh") else 0o100644) << 16
                 data = path.read_bytes()
+                if path.suffix != ".png":
+                    data = data.replace(b"\r\n", b"\n")
                 if name.endswith(".cmd"):
-                    data = data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+                    data = data.replace(b"\n", b"\r\n")
                 archive.writestr(info, data, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
         os.replace(pending, target)
     return f"{hashlib.sha256(target.read_bytes()).hexdigest()}  {target.name}"

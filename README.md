@@ -1,6 +1,6 @@
 # 原译 · RTranslate
 
-用你已有的桌面 Agent 把英文科研论文译成学术中文。原译在本机解析 PDF、识别英文扫描页和图中文字、保护公式并重新排版。语言翻译使用 Agent 当前选定的模型，也可以单独连接 OpenAI 兼容的 Chat Completions API。支持 Apple 芯片及 Intel 的 macOS、Windows x64。无需安装本地大语言模型。Agent 或 API 服务的额度和费用按所用账户计算。
+用你已有的桌面 Agent 把英文科研论文译成学术中文。原译在本机解析 PDF、识别英文扫描页和图中文字、保护公式并重新排版。语言翻译由宿主 Agent 执行。Codex 的独立批次默认使用已登录 CLI 的缺省模型，可指定模型 ID。也可以单独连接 OpenAI 兼容的 Chat Completions API。支持 Apple 芯片及 Intel 的 macOS、Windows x64。无需安装本地大语言模型。Agent 或 API 服务的额度和费用按所用账户计算。
 
 ## 一句话安装
 

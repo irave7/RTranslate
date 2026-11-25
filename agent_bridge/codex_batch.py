@@ -17,6 +17,7 @@ def add_command(commands):
     parser.add_argument("--job", required=True, type=Path)
     parser.add_argument("--packet-file", required=True, type=Path)
     parser.add_argument("--timeout", type=int, default=420)
+    parser.add_argument("--model", help="指定此独立 Codex 会话的模型；缺省使用 CLI 内置默认值")
 
 
 def _environment():
@@ -25,7 +26,7 @@ def _environment():
             and key not in {"OPENAI_API_KEY", "CODEX_API_KEY", "RTRANSLATE_API_KEY"}}
 
 
-def _translate(codex, payload, timeout, env):
+def _translate(codex, payload, timeout, env, model=None):
     instruction = (_SYSTEM.partition("仅返回 JSON 对象")[0]
         +"仅处理本次数据，勿用工具。返回仅含 answers 的 JSON 对象，按 tasks 顺序列各任务答复。"
         "paragraphs/figure 为 items 同序译文数组，图内短标签保留编号与组别。single 为 text 的译文字符串。"
@@ -50,6 +51,8 @@ def _translate(codex, payload, timeout, env):
                    "-c", "features.apps=false", "-c", "features.plugins=false",
                    "-c", "features.shell_tool=false", "-c", "features.unified_exec=false",
                    "--output-last-message", str(final), "-"]
+        if model:
+            command[-1:-1] = ["--model", model]
         proc = subprocess.run(command, input=prompt.encode(), cwd=folder, env=env,
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
         if proc.returncode or not final.is_file():
@@ -60,8 +63,10 @@ def _translate(codex, payload, timeout, env):
         return data["answers"]
 
 
-def run(directory, packet_file, timeout):
+def run(directory, packet_file, timeout, model=None):
     from .cli import submit
+    if model is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}",model):
+        raise ValueError("请指定有效的 Codex 模型名。")
     if not 5 <= timeout <= 3600:
         raise ValueError("--timeout 范围 5–3600 秒。")
     batch = jobs.read(packet_file)
@@ -91,7 +96,7 @@ def run(directory, packet_file, timeout):
                 raise ValueError("请先使用 ChatGPT 账户登录 Codex CLI，以使用现有宿主额度。")
             try:
                 subset = {**batch,"tasks":[batch["tasks"][i-1] for i in pending]}
-                translated = _translate(codex, subset, timeout, env)
+                translated = _translate(codex, subset, timeout, env, model)
                 answers = {str(i):a for i,a in zip(pending, translated)}
             except subprocess.TimeoutExpired:
                 raise RuntimeError("临时 Codex 会话超时；如重试，可能再次使用宿主额度。") from None

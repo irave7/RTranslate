@@ -57,7 +57,8 @@ def next_batch(directory, limit, wait, compact):
     until = time.monotonic()+wait
     while st["state"] not in TERMINAL:
         try:
-            rows = queue.claim(limit=limit, lease_seconds=900, compact_budget=6000 if compact else None)
+            rows = (queue.collect(limit, lease_seconds=900, compact_budget=6000) if compact
+                    else queue.claim(limit=limit, lease_seconds=900))
         except QueueCancelled:
             break
         if rows:
@@ -79,19 +80,21 @@ def next_batch(directory, limit, wait, compact):
             if not tasks:
                 st = jobs.status(directory)
                 continue
-            output = {"state":"working","tasks":tasks}
             if compact:
+                from .payload import bounded_batch
+                batch = secrets.token_hex(6)
+                output = bounded_batch(tasks, batch, lambda rows: selected_terms(directory, rows), 6000)
+                size = len(output["tasks"])
+                for ident, lease, _ in mappings[size:]:
+                    queue.release(ident, lease)
                 tickets = directory / "tickets"
                 tickets.mkdir(mode=0o700, exist_ok=True)
-                batch = secrets.token_hex(6)
-                jobs.write(tickets / (batch + ".json"), mappings)
-                output["batch"] = batch
+                jobs.write(tickets / (batch + ".json"), mappings[:size])
+                return output
+            output = {"state":"working","tasks":tasks}
             terms = selected_terms(directory, tasks)
             if terms:
                 output["glossary"] = terms
-            if compact:
-                from .payload import streamline
-                streamline(output)
             return output
         if time.monotonic()>=until:
             break
@@ -191,7 +194,7 @@ def main(argv=None):
             result = run(args, directory)
         elif args.cmd=="codex-batch":
             from .codex_batch import run
-            result = run(directory,args.packet_file,args.timeout)
+            result = run(directory,args.packet_file,args.timeout,args.model)
         elif args.cmd=="start":
             result = jobs.create(args.input.expanduser().resolve(),directory,args.glossary,
                                  not args.no_figures,args.auto_terms, output=args.output, remember_output=args.remember_output)
