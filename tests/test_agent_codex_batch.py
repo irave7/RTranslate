@@ -75,3 +75,19 @@ class FreshSessionTests(unittest.TestCase):
         with patch("agent_bridge.codex_batch.subprocess.run",side_effect=AssertionError("called host")):
             result = self.run_cli("codex-batch","--packet-file",str(path),expected=1)
         self.assertIn("过期",result["detail"])
+
+    def test_windows_npm_entry_is_launched_directly_even_inside_a_metacharacter_path(self):
+        from agent_bridge.codex_batch import _launcher
+        npm = self.job / "something & with %PATH% and spaces"
+        npm.mkdir()
+        shim = npm / "codex.cmd"; shim.write_text("this script should not execute")
+        node = npm / "node.exe"; node.touch()
+        script = npm / "node_modules" / "@openai" / "codex" / "bin" / "codex.js"
+        script.parent.mkdir(parents=True); script.touch()
+        self.assertEqual(_launcher(shim),[str(node),str(script)])
+        node.unlink()
+        with patch("agent_bridge.codex_batch.shutil.which",return_value="C:/Program Files/nodejs/node.exe"):
+            self.assertEqual(_launcher(shim),["C:/Program Files/nodejs/node.exe",str(script)])
+        script.unlink()
+        with patch("agent_bridge.codex_batch.shutil.which", return_value=None), self.assertRaises(ValueError):
+            _launcher(shim)

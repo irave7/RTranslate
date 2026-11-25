@@ -20,6 +20,22 @@ def add_command(commands):
     parser.add_argument("--model", help="指定此独立 Codex 会话的模型；缺省使用 CLI 内置默认值")
 
 
+def _launcher(executable):
+    """Run npm's JavaScript entry with node directly, bypassing Windows cmd.exe quoting."""
+    path = Path(executable)
+    if path.suffix.casefold() not in {".cmd", ".bat"}:
+        return [str(path)]
+    entry = path.parent / "node_modules" / "@openai" / "codex" / "bin" / "codex.js"
+    node = path.with_name("node.exe")
+    if entry.is_file():
+        interpreter = str(node) if node.is_file() else shutil.which("node.exe")
+        if interpreter:
+            return [interpreter, str(entry)]
+    if binary := shutil.which("codex.exe"):
+        return [binary]
+    raise ValueError("这个 Codex Windows 启动脚本缺少官方 npm 入口或 codex.exe，请检查 Codex CLI 安装。")
+
+
 def _environment():
     return {key:value for key,value in native_env().items()
             if not re.search(r"(?:thread|conversation|session|turn|parent|ancestor|prompt)", key, re.I)
@@ -42,7 +58,7 @@ def _translate(codex, payload, timeout, env, model=None):
         role.write_text("遵守宿主安全及权限要求。"+instruction, encoding="utf-8")
         # "exec" without resume/fork starts a new thread. No document, job
         # directory, previous turn/thread identifier, or user prompt is passed.
-        command = [codex, "exec", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check",
+        command = [*codex, "exec", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check",
                    "--sandbox", "read-only", "-C", str(folder), "-c", 'web_search="disabled"',
                    "-c", "model_instructions_file="+json.dumps(str(role),ensure_ascii=False),
                    "-c", "skills.include_instructions=false", "-c", "skills.bundled.enabled=false",
@@ -90,8 +106,9 @@ def run(directory, packet_file, timeout, model=None):
             codex = shutil.which("codex")
             if not codex:
                 raise ValueError("此命令需要已登录的 Codex CLI；其他宿主可直接读取任务包并 submit。")
+            codex = _launcher(codex)
             env = _environment()
-            login = subprocess.run([codex,"login","status"], env=env, capture_output=True, timeout=20)
+            login = subprocess.run([*codex,"login","status"], env=env, capture_output=True, timeout=20)
             if login.returncode or b"chatgpt" not in (login.stdout+login.stderr).lower():
                 raise ValueError("请先使用 ChatGPT 账户登录 Codex CLI，以使用现有宿主额度。")
             try:

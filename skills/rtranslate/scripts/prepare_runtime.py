@@ -7,7 +7,7 @@ import sys
 def prepare_assets(engine):
     from upstream_runtime import prepare
     runtime = prepare(lambda:None, lambda message:print(message, flush=True))
-    args = [str(runtime.python), "-I", "-B", str(Path(__file__).resolve()), str(engine)]
+    args = [str(runtime.python), "-I", "-B", "-X", "utf8", str(Path(__file__).resolve()), str(engine)]
     subprocess.run(args, env=runtime.env(), check=True)
     print(f"RTranslate 排版及英文 OCR 环境已准备好：{runtime.root}")
 

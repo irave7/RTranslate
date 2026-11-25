@@ -11,6 +11,24 @@
 | macOS | `/bin/sh install.sh --host shared` | `/bin/sh install.sh --host workbuddy` |
 | Windows PowerShell | `powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -TargetHost shared` | `powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -TargetHost workbuddy` |
 
+未安装 Git 时，可以用以下命令直接取得 **v1.0.0** 安装脚本。示例安装到 Codex / DeepSeek Harness，WorkBuddy 将 `shared` 改成 `workbuddy`。
+
+macOS 终端：
+
+```sh
+installer=$(mktemp -t rtranslate-installer)
+curl -fsSL https://raw.githubusercontent.com/irave7/RTranslate/v1.0.0/install.sh -o "$installer" && /bin/sh "$installer" --host shared
+```
+
+Windows PowerShell：
+
+```powershell
+$installer = Join-Path $env:TEMP "RTranslate-install.ps1"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+(New-Object Net.WebClient).DownloadFile("https://raw.githubusercontent.com/irave7/RTranslate/v1.0.0/install.ps1", $installer)
+powershell -NoProfile -ExecutionPolicy Bypass -File $installer -TargetHost shared
+```
+
 默认安装到用户的技能目录。Codex 与 DeepSeek Harness 共用 `~/.agents/skills/rtranslate`；WorkBuddy 用 `~/.codebuddy/skills/rtranslate`。只在一个项目中使用时，在上述命令末尾补上 `--project "<项目路径>"`（Mac）或 `-Project "<项目路径>"`（Windows）。在 WorkBuddy 的项目任务中也可使用项目的 `.codebuddy/skills/rtranslate/`。[Codex 技能发现](https://learn.chatgpt.com/docs/build-skills) · [DeepSeek Harness 技能源](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/skills.md) · [WorkBuddy 项目配置](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Project)
 
 从安装后的目录运行 `scripts/rtranslate.sh preferences` 或 `scripts\rtranslate.cmd preferences`。初次应返回 `{"output":"mono","saved":false}`。要在安装时把 PDF 排版与英文 OCR 一并准备好，可再运行同一启动脚本的 `--prepare`。预热不会调用翻译模型。打开新的宿主会话并确认可以选择「原译」。如果界面只提供上传技能，可下载 `rtranslate.zip` 并在 WorkBuddy 的「技能 → 添加技能 → 上传技能」导入。[下载通用技能包](https://github.com/irave7/RTranslate/releases/latest/download/rtranslate.zip) · [WorkBuddy 技能管理](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Skills-Market)

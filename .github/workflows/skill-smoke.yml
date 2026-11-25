@@ -25,6 +25,9 @@ jobs:
       - name: Install on macOS and translate a PDF
         if: runner.os == 'macOS'
         run: python3 tests/smoke_skill_install.py dist/rtranslate.zip
+      - name: Exercise the real Windows Node argv transport
+        if: runner.os == 'Windows'
+        run: python tests/smoke_windows_node.py
       - name: Install on Windows and translate a PDF
         if: runner.os == 'Windows'
         run: python tests/smoke_skill_install.py dist/rtranslate.zip
